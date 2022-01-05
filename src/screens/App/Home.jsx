@@ -1,5 +1,7 @@
-import {useState } from 'react'
+import {useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import rates from '../../api/rates';
+import Alertbox from '../../components/Alertbox';
 
 const data = [
     {
@@ -41,11 +43,40 @@ const data = [
 
 const Home = () => {
 
-    const bitValue = 166.10
+    const [bitValue, setBitValue] = useState(0)
     const [bit, setBit] = useState("")
+    const [bitObj, setBitObj] =useState({
+        obj: null,
+        error: false,
+        msg: ""
+    })
     const [price, setPrice] = useState("")
-    const [balance, setBalance] = useState(1000)
+    const [balance, setBalance] = useState(100000)
     const [holdings, setHoldings] = useState({amount:0, bit:0})
+    const [errorObj, setErrorObj] = useState({show:false, msg:''})
+
+    useEffect(() => {
+        rates.getRatesById('bitcoin').then((res) => {
+            if(res.status === 200){
+                console.log("Response .... ", res.data.data.symbol)
+                setBitObj((prev) => {
+                    return {...prev,error:false, obj: res.data.data}
+                })
+                setErrorObj({show:false,msg:''})
+                setBitValue(parseFloat(res.data.data.rateUsd).toFixed(2))
+            }
+
+        }).catch((err) => {
+            console.log("Error .... ", err.status)
+            // if(err.response.status === 429){
+            //     setErrorObj({show:true,msg:'You exceeded your 200 request(s) rate limit of your FREE plan.'})
+            // }else{
+                console.log("Here .....  IN Error")
+                setErrorObj({show:true,msg:'Something went wrong fetching bitcoin rates.'})
+                // setBitObj({...bitObj, error:true, msg: ""})
+            // }
+        })
+    },[])
     
     const handleBitChange = (e) => {
         setBit(parseFloat(e.target.value))
@@ -70,7 +101,11 @@ const Home = () => {
             errMessage="Not enough balance in the wallet."
         }
         if(!isOk){
-            alert(errMessage)
+            // alert(errMessage)
+            setErrorObj({
+                show:true,
+                msg: errMessage
+            })
         }else{
             setBalance((prev) => prev-price)
             setBit("")
@@ -82,6 +117,10 @@ const Home = () => {
                     return {...prev, amount: prev.amount + price, bit: prev.bit + bit}
                 })
             }
+            setErrorObj({
+                show:false,
+                msg: ''
+            })
         }
     }
     const handleBitSell = () => {
@@ -112,13 +151,31 @@ const Home = () => {
             })
             setPrice("")
             setBit("")
+            setErrorObj({
+                show:false,
+                msg: ''
+            })
         }else{
-            alert(errMessage)
+            // alert(errMessage)
+            setErrorObj({
+                show:true,
+                msg: errMessage
+            })
         }
+    }
+
+    const dismissAlert = () => {
+        console.log("Called.... ")
+        setErrorObj({show:false,msg:''})
     }
 
     return(
         <div className="max-w-7xl mx-auto px-4 sm:px-6 border-2">
+            {
+                errorObj.show ? 
+                <Alertbox message={errorObj.msg} dismissAlert={dismissAlert}></Alertbox>
+                :null
+            }
             <div className="flex py-6 md:justify-start md:space-x-10">
                 <div className="flex lg:w-0 lg:flex-1">
                     <div class="grid grid-flow-col gap-4 w-full">
@@ -169,10 +226,10 @@ const Home = () => {
                         <div class="row-span-2">
                             <div class="max-w-sm rounded overflow-hidden shadow-lg h-full">
                                 <div class="px-6 py-4">
-                                    <div class="font-bold text-xl mb-1">Bitcoin</div>
+                                    <div class="font-bold text-xl mb-1">Bitcoin {bitObj.obj !== null ? '(' + bitObj.obj.symbol + ') (' + bitObj.obj.currencySymbol + ')' : '' }</div>
                                     <div className='flex items-center' >
-                                        <div class="text-2xl mb-1 text-green-400">$ 166.10 </div>
-                                        <div className="text-l mb-1 text-green-400"> (+1.21)</div>
+                                        <div class="text-2xl mb-1 text-green-400">$ {bitValue}  </div>
+                                        {/* <div className="text-l mb-1 text-green-400"> (+1.21)</div> */}
                                     </div>
                                     <div className='flex justify-between m-2 mt-5'>
                                         <p className='basis-1'>Bitcoins:</p>
